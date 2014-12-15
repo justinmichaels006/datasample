@@ -7,21 +7,23 @@ function insertData() {
     var driver = require("couchbase");
     var cb = new driver.Cluster("127.0.0.1:8091");
     var myBucket = cb.openBucket("cbtest");
-    var maxdocs = 400000;
-    var incnumber = 200000;
+    var maxdocs = 10000;
+    var incnumber = 0;
     // insert stuff in using the upsert method ()
     while (incnumber < maxdocs) {
         site_id = Math.floor((Math.random() * 100) + 1);
         ticket_id = Math.floor(Math.random() * 10000);
         user_id = Math.floor(Math.random() * 100);
         event_type_id = Math.floor((Math.random() * 10) + 1);
+        event_description = randomString(128); //128 length string
         created_at = new Date();
         var stuffs = {
             "site_id" : site_id,
             "ticket_id" : ticket_id,
             "user_id" : user_id,
             "event_type_id" : event_type_id,
-            "created_at" : created_at.toUTCString()
+            "created_at" : created_at.toUTCString(),
+            "description" : event_description
         };
         //console.log("DEBUG:", JSON.stringify(incnumber), ":", JSON.stringify(stuffs));
         myBucket.upsert(JSON.stringify(incnumber), JSON.stringify(stuffs), function (err, result) {
@@ -36,10 +38,18 @@ function insertData() {
     cb.shutdown;
 }
 
-function onRequest(request, response) {
-  response.writeHead(200, {"Content-Type": "text/plain"});
-  response.write("Hello World");
-  response.end();
+function randomNum(hi){
+    return Math.floor(Math.random()*hi);
+}
+function randomChar(){
+    return String.fromCharCode(randomNum(100));
+}
+function randomString(length){
+    var str = "";
+    for(var i = 0; i < length; ++i){
+        str += randomChar();
+    }
+    return str;
 }
 
 app.listen(3000);
