@@ -2,14 +2,15 @@ var http = require("http");
 var express = require('express');
 var app = express();
 var lineReader = require('line-reader');
+var fs = require("fs");
 
 // load the Couchbase driver and connect to the cluster
 var driver = require("couchbase");
-var cb = new driver.Cluster("192.168.67.101:8091");
-var myBucket = cb.openBucket("taxreturn");
+var cb = new driver.Cluster("127.0.0.1:8091");
+var myBucket = cb.openBucket("cbtest");
 
 function insertData() {
-    var somevalue = 100;
+    var somevalue = 2;
 
     for (var i = 0; i < somevalue; i++) {
         console.log(i);
@@ -21,6 +22,11 @@ function insertData() {
             // console.log("RAW DATA:", line);
             stocks = JSON.parse(line);
             stocksid = stocks._id;
+            fs.appendFile('stockids.txt', JSON.stringify(stocksid) + "\n", function (err) {
+                if (err) {
+                    console.log("ERR:", err.message);
+                }
+                });
             // console.log("THE ID:", stocksid);
             delete stocks._id;
             // console.log("DEBUG:", stocksid, stocks);
@@ -28,7 +34,7 @@ function insertData() {
                 if (err) {
                     console.log("ERR:", err.message);
                 } else {
-                    console.log("DONE!");
+                    //console.log("DONE!");
                 }
             });
             if (last) {
