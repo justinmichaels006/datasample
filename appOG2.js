@@ -21,7 +21,7 @@ function insertData() {
             var stocksid;
             // console.log("RAW DATA:", line);
             stocks = JSON.parse(line);
-            stocksid = stocks._id;
+            stocksid = stocks.Ticker;
             fs.appendFile('stockids.txt', JSON.stringify(stocksid) + "\n", function (err) {
                 if (err) {
                     console.log("ERR:", err.message);
