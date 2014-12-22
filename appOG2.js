@@ -10,7 +10,7 @@ var cb = new driver.Cluster("127.0.0.1:8091");
 var myBucket = cb.openBucket("cbtest");
 
 function insertData() {
-    var somevalue = 2;
+    var somevalue = 1;
 
     for (var i = 0; i < somevalue; i++) {
         console.log(i);
@@ -30,7 +30,7 @@ function insertData() {
             // console.log("THE ID:", stocksid);
             delete stocks._id;
             // console.log("DEBUG:", stocksid, stocks);
-            myBucket.upsert(JSON.stringify(stocksid), JSON.stringify(stocks), function (err, result) {
+            myBucket.upsert(stocksid, JSON.stringify(stocks), function (err, result) {
                 if (err) {
                     console.log("ERR:", err.message);
                 } else {
