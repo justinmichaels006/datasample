@@ -9,14 +9,19 @@ var iridArray = [];
 var driver = require("couchbase");
 var cb = new driver.Cluster("192.168.106.101:8091");
 var myBucket = cb.openBucket("recording");
-var maxdocs = 5; // Total number of users
-var streamMin = 1;  // Shows Minimum
-var streamMax = 2;  // Shows Maximum
+var maxdocs = 5000; // Total number of users
+var streamMin = 10;  // Shows Minimum
+var streamMax = 20;  // Shows Maximum
+var batchMin = 1;  // Shows Minimum
+var batchMax = 11;  // Shows Maximum
 var segments = 1800 // Show segments (1 hours recordings)
 
 var incnumber = 0;      // Control loop counter
 var segnumber = 0;      // Control loop counter
 var streamnumber = 0;   // Control loop counter
+var start_time = new Date();
+var end_time = new Date(start_time.getTime() + 60*60000);
+
 /**
  *
  */
@@ -27,14 +32,14 @@ IRIDburst(function(err,iridCount){
     }
     if(iridCount){
         console.log("SUCCESS:",iridCount," customer recordings started.");
-        setStream(function(err,resultData){
+        setBatch(function(err,resultData){
             if(err){
                 console.log(err);
                 return;
             }
             if(resultData) {
-                console.log("SUCCESS:", resultData," streams are set for recording segments.");
-                streamBurst(function(err,resultRecord) {
+                console.log("SUCCESS:", resultData," batches are set for recording segments.");
+                segmentBurst(function(err,resultRecord) {
                     if(err) {
                         console.log(err);
                         return;
@@ -55,20 +60,19 @@ IRIDburst(function(err,iridCount){
  */
 function IRIDburst(done) {
     for(var i=1;i<=maxdocs;i++){
-        start_time = new Date();
         //console.log(start_time + "   " + start_time.getMinutes());
         var recordingDoc = {
             "_irid":i,
             "xrid": uuid.v1(),
             "stream_id" : "stream" + randomInt(streamMin,streamMax),
             "isActive" : randomString(5),
-            "a8_url" : "http://" + randomChar(15) + "." + randomChar(3),
+            "a8_url" : "http://" + randomString(15) + "." + randomString(3),
             "start_time" : start_time,
-            "end_time" : new Date(start_time.getTime() + 60*60000),
-            "erased_time" : start_time + 20000,
-            "actual_start_time" : new Date(),
-            "actual_end_time" : new Date(start_time + start_time.getMinutes() + 60),
-            "batch_id" : "batch" + randomInt(1, 10),
+            "end_time" : end_time,
+            "erased_time" : new Date(start_time.getTime() + 1440*60000),
+            "actual_start_time" : start_time,
+            "actual_end_time" : end_time,
+            "batch_id" : "batch" + randomInt(batchMin,batchMax),
             "error_code" : uuid.v4(),
             "is_timeline" : "false",
             "is_rm_notify" : "false"
@@ -76,7 +80,6 @@ function IRIDburst(done) {
         /**
          *
          */
-        //console.log("  USER IRID:", JSON.stringify(i))
         myBucket.upsert(recordingDoc._irid.toString(), recordingDoc, function (err, newIRID) {
             if (err) {
                 console.log("ERR:", err.message);
@@ -98,27 +101,27 @@ function IRIDburst(done) {
  *
  * @param done
  */
-function setStream(done) {
-    var streamDoc = {
+function setBatch(done) {
+    var batchDoc = {
         jump_time: null,
-        batch_id: Math.floor((Math.random() * 100) + 1),
+        //batch_id: Math.floor((Math.random() * 100) + 1),
         active_recordings: null,
         version: uuid.v4(),
         copy_count : "//get from iridArray",
-        currentCount : 0
+        currentCount : 1800
     }
-    var curStream=streamMin;
-    for (var i = streamMin; i < streamMax+1; i++) {
-        console.log("  STREAM: ", i);
-        myBucket.upsert("stream"+i, streamDoc, function (err, newStream) {
+    var curBatch=batchMin;
+    for (var i = batchMin; i < batchMax+1; i++) {
+        console.log("  BATCH: ", i);
+        myBucket.upsert("batch"+i, batchDoc, function (err, newBatch) {
             if (err) {
                 console.log("ERR:", err.message);
                 done(err, null);
                 return;
-            } if (newStream) {
-                curStream++;
-                if(curStream==streamMax) {
-                    done(null, streamMax);
+            } if (newBatch) {
+                curBatch++;
+                if(curBatch==batchMax) {
+                    done(null, batchMax);
                     return;
                 }
             }
@@ -130,11 +133,11 @@ function setStream(done) {
  *
  * @param resultRecord
  */
-function streamBurst(resultRecord) {
-    console.log("  STREAM:BURST");
+function segmentBurst(resultRecord) {
+    console.log("  BATCH:BURST");
     function segBuilder(i) {
-        console.log("  STREAM:BURST:",i);
-        if (i < streamMax + 1) {
+        console.log("  BATCH: ",i);
+        if (i < batchMax+1) {
             buildSegment(i, function (err, segBuilt) {
                 if (err) {
                     resultRecord(err, null);
@@ -147,30 +150,30 @@ function streamBurst(resultRecord) {
             });
         }
         else {
-            resultRecord(null,streamMax);
+            resultRecord(null,batchMax);
         }
     }
-    segBuilder(streamMin);
+    segBuilder(batchMin);
 }
 
 
 /**
  *
- * @param streamID
+ * @param batchID
  * @param done
  */
-function buildSegment(streamID,done) {
-    console.log("    SEGMENT:STREAM ",streamID,":",segments, " segments");
+function buildSegment(batchID,done) {
+    console.log("    SEGMENT:BATCH ",batchID,":",segments, " segments");
     for (var j=1; j <=segments; j++) {
         // Current Stream Document
-        var currentStream = "stream" + streamID;
+        var currentBatch = "batch" + batchID;
 
         // Create a Segment
         var segmentDoc = {
             segment_num: (randomInt(0, 18446744073709551615)),
             jump_time: null,
-            stream_id: currentStream,
-            segment: "http://" + randomChar(15) + "." + randomChar(3),
+            stream_id: currentBatch,
+            segment: "http://" + randomString(15) + "." + randomString(3),
             period_first: "na",
             period_current: "na",
             period_last: "na",
@@ -182,7 +185,8 @@ function buildSegment(streamID,done) {
             batch_list: null
         }
         // Insert Segment
-        myBucket.upsert(currentStream + "::" + j, segmentDoc, function (err, newSegment) {
+        var segmentKey = currentBatch + "::" + j;
+        myBucket.upsert(segmentKey, segmentDoc, function (err, newSegment) {
             if (err) {
                 console.log("ERR:", err.message);
                 done(err, null);
@@ -191,7 +195,7 @@ function buildSegment(streamID,done) {
             if (newSegment) {
                 segnumber++;
                 if(segnumber==segments){
-                    console.log("    SEGMENT:STREAM ",streamID,":",segments," built");
+                    console.log("    SEGMENT:BATCH ",batchID,":",segments," built");
                     done(null,segments);
                     return;
                 }
@@ -212,7 +216,7 @@ function randomNum(hi){
  * @returns {string}
  */
 function randomChar(){
-    return String.fromCharCode(randomNum(100));
+    return String.fromCharCode(randomNum(10));
 }
 /**
  *
@@ -237,4 +241,3 @@ function randomInt (mincount, maxcount) {
 }
 
 app.listen(3000);
-
